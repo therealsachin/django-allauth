@@ -1,3 +1,6 @@
+import md5
+import time
+
 from django.contrib import messages
 from django.shortcuts import render_to_response, render
 from django.http import HttpResponseRedirect
