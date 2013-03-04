@@ -46,12 +46,12 @@ def _process_signup(request, sociallogin):
                     user.set_password(md5.new('%s:%s ' % (email, time.time())).hexdigest())
                     user.save()
                     context = create_password_reset_context(user)
-                    get_adapter().send_mail('account/email/link_facebook',
-                                            email, context)
+                    get_account_adapter().send_mail('account/email/link_facebook',
+                                                    email, context)
                     sociallogin.account.user = user
                     sociallogin.save()
                     return perform_login(request, user, 
-                                         redirect_url=sociallogin.get_redirect_url())
+                                         redirect_url=sociallogin.get_redirect_url(request))
                 except User.DoesNotExist:
                     # No user exists with this email. Let's auto sign up the user.
                     auto_signup = True
