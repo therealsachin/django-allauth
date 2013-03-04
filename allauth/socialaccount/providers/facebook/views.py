@@ -18,7 +18,7 @@ from provider import FacebookProvider
 def fb_complete_login(app, token):
     resp = requests.get('https://graph.facebook.com/me',
                         params={ 'access_token': token.token })
-    extra_data = resp.json()
+    extra_data = resp.json
     uid = extra_data['id']
     user = get_adapter() \
         .populate_new_user(email=extra_data.get('email'),
