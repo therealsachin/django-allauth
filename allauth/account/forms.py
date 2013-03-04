@@ -363,6 +363,20 @@ class SetPasswordForm(UserForm):
         self.user.save()
 
 
+def create_password_reset_context(user):
+    temp_key = default_token_generator.make_token(user)
+    current_site = Site.objects.get_current()
+    # send the password reset email
+    path = reverse("account_reset_password_from_key",
+                   kwargs=dict(uidb36=int_to_base36(user.id),
+                   key=temp_key))
+    url = 'http://%s%s' % (current_site.domain, path)
+    current_site = Site.objects.get_current()
+    return {"site": current_site,
+            "user": user,
+            "password_reset_url": url}
+
+
 class ResetPasswordForm(forms.Form):
     
     email = forms.EmailField(
@@ -385,24 +399,7 @@ class ResetPasswordForm(forms.Form):
         token_generator = kwargs.get("token_generator", default_token_generator)
         
         for user in self.users:
-            
-            temp_key = token_generator.make_token(user)
-            
-            # save it to the password reset model
-            # password_reset = PasswordReset(user=user, temp_key=temp_key)
-            # password_reset.save()
-            
-            current_site = Site.objects.get_current()
-
-            # send the password reset email
-            path = reverse("account_reset_password_from_key",
-                           kwargs=dict(uidb36=int_to_base36(user.id),
-                                       key=temp_key))
-            url = 'http://%s%s' % (current_site.domain,
-                                   path)
-            context = { "site": current_site,
-                        "user": user,
-                        "password_reset_url": url }
+            context = create_password_reset_context(user) 
             get_adapter().send_mail('account/email/password_reset_key',
                                     email,
                                     context)

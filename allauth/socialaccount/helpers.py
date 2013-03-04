@@ -8,6 +8,7 @@ from django.template.defaultfilters import slugify
 
 from allauth.utils import (generate_unique_username, email_address_exists,
                            get_user_model)
+from allauth.account.forms import create_password_reset_context
 from allauth.account.utils import send_email_confirmation, \
     perform_login, complete_signup
 from allauth.account import app_settings as account_settings
@@ -29,19 +30,28 @@ def _process_signup(request, sociallogin):
         # Let's check if auto_signup is really possible...
         if email:
             if account_settings.UNIQUE_EMAIL:
-                if email_address_exists(email):
+                try:
+                    user = User.objects.get(email__iexact=email)
                     # Oops, another user already has this address.  We
                     # cannot simply connect this social account to the
                     # existing user. Reason is that the email adress may
                     # not be verified, meaning, the user may be a hacker
                     # that has added your email address to his account in
-                    # the hope that you fall in his trap.  We cannot check
-                    # on 'email_address.verified' either, because
-                    # 'email_address' is not guaranteed to be verified.
-                    auto_signup = False
-                    # FIXME: We redirect to signup form -- user will
-                    # see email address conflict only after posting
-                    # whereas we detected it here already.
+                    # the hope that you fall in his trap. To solve this,
+                    # we reset the password of the email account and connect
+                    # the user.
+                    user.set_password(md5.new('%s:%s ' % (email, time.time())).hexdigest())
+                    user.save()
+                    context = create_password_reset_context(user)
+                    get_adapter().send_mail('account/email/link_facebook',
+                                            email, context)
+                    sociallogin.account.user = user
+                    sociallogin.save()
+                    return perform_login(request, user, 
+                                         redirect_url=sociallogin.get_redirect_url())
+                except User.DoesNotExist:
+                    # No user exists with this email. Let's auto sign up the user.
+                    auto_signup = True
         elif account_settings.EMAIL_REQUIRED:
             # Nope, email is required and we don't have it yet...
             auto_signup = False
